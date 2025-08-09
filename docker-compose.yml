@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  # Shopping Cart Application
+  shopping-cart-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_DEFAULT_URL=jdbc:mysql://mysql-default:3306/default_db
+      - SPRING_DATASOURCE_DEFAULT_USERNAME=root
+      - SPRING_DATASOURCE_DEFAULT_PASSWORD=rootpassword
+      - SPRING_DATASOURCE_TENANT1_URL=jdbc:mysql://mysql-tenant1:3306/tenant1_db
+      - SPRING_DATASOURCE_TENANT1_USERNAME=root
+      - SPRING_DATASOURCE_TENANT1_PASSWORD=rootpassword
+      - SPRING_DATASOURCE_TENANT2_URL=jdbc:mysql://mysql-tenant2:3306/tenant2_db
+      - SPRING_DATASOURCE_TENANT2_USERNAME=root
+      - SPRING_DATASOURCE_TENANT2_PASSWORD=rootpassword
+      - JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseContainerSupport
+    depends_on:
+      mysql-default:
+        condition: service_healthy
+      mysql-tenant1:
+        condition: service_healthy
+      mysql-tenant2:
+        condition: service_healthy
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  # Default Tenant Database
+  mysql-default:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: default_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_default_data:/var/lib/mysql
+      - ./docker/mysql/init-default.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  # Tenant 1 Database
+  mysql-tenant1:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tenant1_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_tenant1_data:/var/lib/mysql
+      - ./docker/mysql/init-tenant1.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  # Tenant 2 Database
+  mysql-tenant2:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tenant2_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_tenant2_data:/var/lib/mysql
+      - ./docker/mysql/init-tenant2.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  # Redis for Session Management (Optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
+      retries: 5
+      interval: 10s
+
+  # Nginx Load Balancer / Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - shopping-cart-app
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+
+  # Database Management Tool
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_ARBITRARY: 1
+      PMA_HOST: mysql-default,mysql-tenant1,mysql-tenant2
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql-default
+      - mysql-tenant1
+      - mysql-tenant2
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+
+volumes:
+  mysql_default_data:
+    driver: local
+  mysql_tenant1_data:
+    driver: local
+  mysql_tenant2_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  shopping-cart-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

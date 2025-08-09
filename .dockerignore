@@ -1,0 +1,47 @@
+# Docker ignore file for Multi-Tenant Shopping Cart
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Scripts
+*.sh
+
+# Documentation
+README.md
+docs/
+
+# Environment files
+.env*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: multi-tenant-shopping-cart
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          time_zone: UTC
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+tenants:
+  default:
+    datasource:
+      url: ${SPRING_DATASOURCE_DEFAULT_URL:jdbc:mysql://mysql-default:3306/default_db}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: ${SPRING_DATASOURCE_DEFAULT_USERNAME:root}
+      password: ${SPRING_DATASOURCE_DEFAULT_PASSWORD:rootpassword}
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+  tenant1:
+    datasource:
+      url: ${SPRING_DATASOURCE_TENANT1_URL:jdbc:mysql://mysql-tenant1:3306/tenant1_db}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: ${SPRING_DATASOURCE_TENANT1_USERNAME:root}
+      password: ${SPRING_DATASOURCE_TENANT1_PASSWORD:rootpassword}
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+  tenant2:
+    datasource:
+      url: ${SPRING_DATASOURCE_TENANT2_URL:jdbc:mysql://mysql-tenant2:3306/tenant2_db}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      username: ${SPRING_DATASOURCE_TENANT2_USERNAME:root}
+      password: ${SPRING_DATASOURCE_TENANT2_PASSWORD:rootpassword}
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+
+logging:
+  level:
+    com.shoppingcart: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/shopping-cart.log

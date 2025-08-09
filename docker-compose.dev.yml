@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # MySQL Databases only for development
+  mysql-default:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: default_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_default_data:/var/lib/mysql
+      - ./docker/mysql/init-default.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  mysql-tenant1:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tenant1_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_tenant1_data:/var/lib/mysql
+      - ./docker/mysql/init-tenant1.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  mysql-tenant2:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tenant2_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_tenant2_data:/var/lib/mysql
+      - ./docker/mysql/init-tenant2.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_ARBITRARY: 1
+      PMA_HOST: mysql-default,mysql-tenant1,mysql-tenant2
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql-default
+      - mysql-tenant1
+      - mysql-tenant2
+    networks:
+      - shopping-cart-network
+    restart: unless-stopped
+
+volumes:
+  mysql_default_data:
+    driver: local
+  mysql_tenant1_data:
+    driver: local
+  mysql_tenant2_data:
+    driver: local
+
+networks:
+  shopping-cart-network:
+    driver: bridge

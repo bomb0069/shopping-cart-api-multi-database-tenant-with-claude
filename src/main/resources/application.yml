@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: multi-tenant-shopping-cart
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+tenants:
+  default:
+    datasource:
+      url: jdbc:h2:mem:default_db
+      driver-class-name: org.h2.Driver
+      username: sa
+      password: 
+  tenant1:
+    datasource:
+      url: jdbc:h2:mem:tenant1_db
+      driver-class-name: org.h2.Driver
+      username: sa
+      password: 
+  tenant2:
+    datasource:
+      url: jdbc:h2:mem:tenant2_db
+      driver-class-name: org.h2.Driver
+      username: sa
+      password: 
+
+logging:
+  level:
+    com.shoppingcart: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
