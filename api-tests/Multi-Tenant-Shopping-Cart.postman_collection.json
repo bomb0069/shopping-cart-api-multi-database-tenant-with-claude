@@ -1,0 +1,1047 @@
+{
+	"info": {
+		"name": "Multi-Tenant Shopping Cart API",
+		"description": "Comprehensive API testing collection for the multi-tenant shopping cart platform. Tests all endpoints with proper tenant isolation and data validation.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"version": "1.0.0"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "{{base_url}}",
+			"type": "string"
+		},
+		{
+			"key": "tenant_id",
+			"value": "{{tenant_id}}",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Application Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/actuator/health",
+							"host": ["{{base_url}}"],
+							"path": ["actuator", "health"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Application is healthy', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.eql('UP');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Current Tenant Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/tenant",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "tenant"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Tenant context is set correctly', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.text()).to.include(pm.environment.get('tenant_id'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Products API",
+			"item": [
+				{
+					"name": "Get All Products",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Products retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('content');",
+									"    pm.expect(response.content).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Response structure is valid', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.all.keys('content', 'pageable', 'totalElements', 'totalPages', 'last', 'size', 'number', 'sort', 'first', 'numberOfElements', 'empty');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Product API\",\n    \"description\": \"Product created via API testing\",\n    \"sku\": \"API-TEST-{{$randomInt}}\",\n    \"basePrice\": 99.99,\n    \"stockQuantity\": 50,\n    \"category\": \"Electronics\",\n    \"brand\": \"TestBrand\",\n    \"imageUrls\": [\"https://example.com/image1.jpg\"],\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product created successfully', function () {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.name).to.eql('Test Product API');",
+									"    ",
+									"    // Store product ID for subsequent tests",
+									"    pm.environment.set('created_product_id', response.id);",
+									"    pm.environment.set('created_product_sku', response.sku);",
+									"});",
+									"",
+									"pm.test('Product has correct structure', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.all.keys('id', 'name', 'description', 'sku', 'basePrice', 'stockQuantity', 'category', 'brand', 'imageUrls', 'active', 'createdAt', 'updatedAt');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/{{created_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "{{created_product_id}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product retrieved by ID', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.id).to.eql(parseInt(pm.environment.get('created_product_id')));",
+									"    pm.expect(response.name).to.eql('Test Product API');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Product by SKU",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/sku/{{created_product_sku}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "sku", "{{created_product_sku}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product retrieved by SKU', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.sku).to.eql(pm.environment.get('created_product_sku'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Search Products",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/search?q=Test",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": "Test"
+								}
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Products search works', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.content).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Test Product\",\n    \"basePrice\": 149.99,\n    \"stockQuantity\": 75\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/{{created_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "{{created_product_id}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product updated successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.name).to.eql('Updated Test Product');",
+									"    pm.expect(response.basePrice).to.eql(149.99);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Prices API",
+			"item": [
+				{
+					"name": "Get Effective Price",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/prices/product/{{created_product_id}}/effective?quantity=1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "prices", "product", "{{created_product_id}}", "effective"],
+							"query": [
+								{
+									"key": "quantity",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Effective price retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const price = parseFloat(pm.response.text());",
+									"    pm.expect(price).to.be.a('number');",
+									"    pm.expect(price).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Price Rule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product\": {\n        \"id\": {{created_product_id}}\n    },\n    \"price\": 129.99,\n    \"priceType\": \"SPECIAL\",\n    \"customerGroup\": \"VIP\",\n    \"minQuantity\": 5,\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/prices",
+							"host": ["{{base_url}}"],
+							"path": ["api", "prices"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Price rule created successfully', function () {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.price).to.eql(129.99);",
+									"    pm.expect(response.priceType).to.eql('SPECIAL');",
+									"    ",
+									"    pm.environment.set('created_price_id', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Promotions API",
+			"item": [
+				{
+					"name": "Get Active Promotions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/promotions/active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "promotions", "active"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Active promotions retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Promotion",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"API Test Promotion\",\n    \"description\": \"10% off for API testing\",\n    \"code\": \"APITEST{{$randomInt}}\",\n    \"discountType\": \"PERCENTAGE\",\n    \"discountValue\": 10,\n    \"minOrderAmount\": 50,\n    \"maxDiscountAmount\": 25,\n    \"validFrom\": \"{{$isoTimestamp}}\",\n    \"validTo\": \"2024-12-31T23:59:59\",\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/promotions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "promotions"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Promotion created successfully', function () {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.name).to.eql('API Test Promotion');",
+									"    pm.expect(response.discountValue).to.eql(10);",
+									"    ",
+									"    pm.environment.set('created_promotion_id', response.id);",
+									"    pm.environment.set('created_promotion_code', response.code);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Promotion by Code",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/promotions/code/{{created_promotion_code}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "promotions", "code", "{{created_promotion_code}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Promotion retrieved by code', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.code).to.eql(pm.environment.get('created_promotion_code'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Calculate Discount",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/promotions/{{created_promotion_id}}/calculate-discount?orderAmount=100",
+							"host": ["{{base_url}}"],
+							"path": ["api", "promotions", "{{created_promotion_id}}", "calculate-discount"],
+							"query": [
+								{
+									"key": "orderAmount",
+									"value": "100"
+								}
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Discount calculated correctly', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const discount = parseFloat(pm.response.text());",
+									"    pm.expect(discount).to.eql(10); // 10% of 100",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Cart API",
+			"item": [
+				{
+					"name": "Get Cart",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cart",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cart"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Cart retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response).to.have.property('items');",
+									"    pm.expect(response.items).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Add Item to Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cart/items?productId={{created_product_id}}&quantity=2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cart", "items"],
+							"query": [
+								{
+									"key": "productId",
+									"value": "{{created_product_id}}"
+								},
+								{
+									"key": "quantity",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Item added to cart successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.have.lengthOf(1);",
+									"    pm.expect(response.items[0].quantity).to.eql(2);",
+									"    pm.expect(response.subtotal).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Update Cart Item",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cart/items?productId={{created_product_id}}&quantity=3",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cart", "items"],
+							"query": [
+								{
+									"key": "productId",
+									"value": "{{created_product_id}}"
+								},
+								{
+									"key": "quantity",
+									"value": "3"
+								}
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Cart item updated successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items[0].quantity).to.eql(3);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Apply Promotion to Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cart/promotions/{{created_promotion_code}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cart", "promotions", "{{created_promotion_code}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Promotion applied to cart', function () {",
+									"    if (pm.response.code === 200) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.discountAmount).to.be.greaterThan(0);",
+									"        pm.expect(response.appliedPromotion).to.not.be.null;",
+									"    } else {",
+									"        // Promotion might not be applicable, which is fine",
+									"        pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Multi-Tenant Isolation Tests",
+			"item": [
+				{
+					"name": "Create Product in Tenant1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "tenant1",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Tenant1 Product\",\n    \"description\": \"Product for tenant1 only\",\n    \"sku\": \"T1-ISOLATED-{{$randomInt}}\",\n    \"basePrice\": 50.00,\n    \"stockQuantity\": 10,\n    \"category\": \"Tenant1Category\",\n    \"brand\": \"Tenant1Brand\",\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product created in tenant1', function () {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.name).to.eql('Tenant1 Product');",
+									"    ",
+									"    pm.environment.set('tenant1_product_id', response.id);",
+									"    pm.environment.set('tenant1_product_sku', response.sku);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Create Product in Tenant2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "tenant2",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Tenant2 Product\",\n    \"description\": \"Product for tenant2 only\",\n    \"sku\": \"T2-ISOLATED-{{$randomInt}}\",\n    \"basePrice\": 75.00,\n    \"stockQuantity\": 20,\n    \"category\": \"Tenant2Category\",\n    \"brand\": \"Tenant2Brand\",\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product created in tenant2', function () {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.name).to.eql('Tenant2 Product');",
+									"    ",
+									"    pm.environment.set('tenant2_product_id', response.id);",
+									"    pm.environment.set('tenant2_product_sku', response.sku);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Verify Tenant1 Cannot See Tenant2 Product",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "tenant1",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/{{tenant2_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "{{tenant2_product_id}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Tenant isolation maintained - tenant1 cannot access tenant2 product', function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Verify Tenant2 Cannot See Tenant1 Product",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "tenant2",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/{{tenant1_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "{{tenant1_product_id}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Tenant isolation maintained - tenant2 cannot access tenant1 product', function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Verify Same SKU Allowed Across Tenants",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "tenant2",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Duplicate SKU Product in Tenant2\",\n    \"description\": \"Same SKU as tenant1 product\",\n    \"sku\": \"{{tenant1_product_sku}}\",\n    \"basePrice\": 100.00,\n    \"stockQuantity\": 5,\n    \"category\": \"DuplicateTest\",\n    \"brand\": \"TestBrand\",\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Same SKU allowed across different tenants', function () {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.sku).to.eql(pm.environment.get('tenant1_product_sku'));",
+									"    pm.expect(response.name).to.eql('Duplicate SKU Product in Tenant2');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Cleanup",
+			"item": [
+				{
+					"name": "Delete Test Product",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/{{created_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "{{created_product_id}}"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Product deleted successfully', function () {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Clear Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/cart/clear",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cart", "clear"]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Cart cleared successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -16,6 +16,7 @@ help:
 	@echo "  make dev-stop  - Stop development databases"
 	@echo "  make logs      - View application logs"
 	@echo "  make test      - Run tests"
+	@echo "  make api-test  - Run API tests with Postman/Newman"
 	@echo "  make maven-*   - Maven commands (compile, package, etc.)"
 	@echo ""
 
@@ -79,6 +80,26 @@ test-all:
 coverage-report:
 	@echo "Opening test coverage report..."
 	@open target/site/jacoco/index.html || xdg-open target/site/jacoco/index.html || echo "Coverage report available at target/site/jacoco/index.html"
+
+# API Testing with Newman
+api-test:
+	@echo "🧪 Running API tests..."
+	./api-test.sh local
+
+# API testing with Docker environment
+api-test-docker:
+	@echo "🧪 Running API tests against Docker environment..."
+	./api-test.sh docker
+
+# API testing with performance tests
+api-test-performance:
+	@echo "🚀 Running API tests with performance testing..."
+	./api-test.sh local http://localhost:8080 --performance
+
+# Install Newman for API testing
+install-newman:
+	@echo "📦 Installing Newman..."
+	npm install -g newman newman-reporter-htmlextra
 
 # Maven commands
 maven-compile:

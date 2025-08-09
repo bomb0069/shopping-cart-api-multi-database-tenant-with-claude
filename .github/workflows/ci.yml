@@ -124,6 +124,100 @@ jobs:
         curl -f http://localhost:8080/actuator/health || exit 1
         docker stop test-container
 
+  api-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql-default:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: default_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      mysql-tenant1:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: tenant1_db
+        ports:
+          - 3307:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      mysql-tenant2:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: tenant2_db
+        ports:
+          - 3308:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: 17
+        distribution: 'temurin'
+    
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Build and start application
+      run: |
+        mvn clean package -DskipTests
+        nohup java -jar target/multi-tenant-shopping-cart-1.0.0-SNAPSHOT.jar \
+          --spring.profiles.active=docker \
+          --spring.datasource.default.url=jdbc:mysql://localhost:3306/default_db \
+          --spring.datasource.tenant1.url=jdbc:mysql://localhost:3307/tenant1_db \
+          --spring.datasource.tenant2.url=jdbc:mysql://localhost:3308/tenant2_db > app.log 2>&1 &
+        echo $! > app.pid
+    
+    - name: Wait for application to start
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:8080/actuator/health; do sleep 2; done'
+    
+    - name: Install Newman
+      run: npm install -g newman newman-reporter-htmlextra
+    
+    - name: Run API tests with Newman
+      run: |
+        newman run api-tests/Multi-Tenant-Shopping-Cart.postman_collection.json \
+          -e api-tests/environments/ci.postman_environment.json \
+          --reporters cli,htmlextra \
+          --reporter-htmlextra-export api-test-results.html \
+          --reporter-htmlextra-darkTheme \
+          --timeout-request 10000 \
+          --delay-request 500 \
+          --bail
+    
+    - name: Upload API test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: api-test-results
+        path: |
+          api-test-results.html
+          app.log
+    
+    - name: Stop application
+      if: always()
+      run: |
+        if [ -f app.pid ]; then
+          kill $(cat app.pid) || true
+          rm app.pid
+        fi
+
   security-scan:
     runs-on: ubuntu-latest
     steps:
